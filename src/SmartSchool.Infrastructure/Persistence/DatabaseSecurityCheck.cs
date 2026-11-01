@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -39,31 +40,76 @@ public sealed class DatabaseSecurityCheck(ILogger<DatabaseSecurityCheck> logger)
 
     public async Task StartingAsync(CancellationToken cancellationToken)
     {
+        var databaseUrl = PostgresConnectionStrings.RequireFromEnvironment();
+        var connectionString = PostgresConnectionStrings.ToNpgsql(databaseUrl);
+        var databaseName = new NpgsqlConnectionStringBuilder(connectionString).Database;
+        await using var connection = new NpgsqlConnection(connectionString);
+        if (!await TryOpenAsync(connection, cancellationToken))
+            return;
+
+        await VerifyDatabaseNameAsync(connection, cancellationToken);
+        await VerifyRoleAsync(connection, cancellationToken);
+        await VerifyBoundariesAsync(connection, cancellationToken);
+        await VerifyPoliciesAsync(connection, cancellationToken);
+        await VerifyAuthFunctionAsync(connection, cancellationToken);
+        logger.LogInformation(
+            "Database role passed the row-level security privilege check for database {Database}.",
+            databaseName);
+    }
+
+    private async Task<bool> TryOpenAsync(NpgsqlConnection connection, CancellationToken cancellationToken)
+    {
         try
         {
-            var databaseUrl = PostgresConnectionStrings.RequireFromEnvironment();
-            var connectionString = PostgresConnectionStrings.ToNpgsql(databaseUrl);
-            var databaseName = new NpgsqlConnectionStringBuilder(connectionString).Database;
-            await using var connection = new NpgsqlConnection(connectionString);
             await connection.OpenAsync(cancellationToken);
-            await VerifyDatabaseNameAsync(connection, cancellationToken);
-            await VerifyRoleAsync(connection, cancellationToken);
-            await VerifyBoundariesAsync(connection, cancellationToken);
-            await VerifyPoliciesAsync(connection, cancellationToken);
-            await VerifyAuthFunctionAsync(connection, cancellationToken);
-            logger.LogInformation(
-                "Database role passed the row-level security privilege check for database {Database}.",
-                databaseName);
+            return true;
         }
-        catch (InvalidOperationException)
+        catch (PostgresException)
         {
             throw;
         }
-        catch (Exception ex)
+        catch (TimeoutException ex)
         {
-            logger.LogError("Database startup check failed with {ExceptionType}", ex.GetType().Name);
-            throw new InvalidOperationException("Database startup check failed.");
+            LogUnreachable(ex, "timeout");
+            return false;
         }
+        catch (SocketException ex)
+        {
+            LogUnreachable(ex, "socket");
+            return false;
+        }
+        catch (IOException ex) when (ex.InnerException is SocketException or TimeoutException)
+        {
+            LogUnreachable(ex, "connection");
+            return false;
+        }
+        catch (NpgsqlException ex) when (IsTransportFailure(ex))
+        {
+            LogUnreachable(ex, "connection");
+            return false;
+        }
+    }
+
+    private static bool IsTransportFailure(NpgsqlException exception)
+    {
+        if (exception is PostgresException)
+            return false;
+
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is PostgresException)
+                return false;
+        }
+
+        return true;
+    }
+
+    private void LogUnreachable(Exception exception, string reason)
+    {
+        logger.LogError(
+            "Database startup check deferred because PostgreSQL is unreachable. Reason: {Reason}. ExceptionType: {ExceptionType}",
+            reason,
+            exception.GetType().Name);
     }
 
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;

@@ -5,7 +5,7 @@ using SmartSchool.Infrastructure.Persistence;
 
 namespace SmartSchool.Api.Tests;
 
-public sealed class ApiFactory : WebApplicationFactory<Program>
+public class ApiFactory : WebApplicationFactory<Program>
 {
     public const string SigningKey = "integration-test-signing-key-32chars";
 

@@ -31,6 +31,11 @@ if (args.Contains("prepare-test-school"))
 
 var builder = WebApplication.CreateBuilder(args);
 
+var port = Environment.GetEnvironmentVariable("PORT");
+if (string.IsNullOrWhiteSpace(port))
+    port = "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
 var databaseUrl = PostgresConnectionStrings.RequireFromEnvironment();
 var connectionString = PostgresConnectionStrings.ToNpgsql(databaseUrl);
 var signingKey = builder.Configuration["AUTH_SIGNING_KEY"] ?? "";
@@ -66,7 +71,7 @@ builder.Services.AddScoped<SupervisorService>();
 builder.Services.AddHomeworkModule();
 #endif
 builder.Services.AddHealthChecks()
-    .AddCheck<DatabaseHealthCheck>("database");
+    .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 
 var authOptions = builder.Configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -291,14 +296,20 @@ app.MapFallback(async http =>
         "Not Found",
         "The requested resource was not found.");
 });
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = WriteHealth
-});
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
-    Predicate = _ => false,
-    ResponseWriter = WriteHealth
+    Predicate = static _ => false,
+    ResponseWriter = WriteApiAvailability
+});
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = static check => check.Tags.Contains("ready"),
+    ResponseWriter = WriteDatabaseReadiness
+});
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = static check => check.Tags.Contains("ready"),
+    ResponseWriter = WriteDatabaseReadiness
 });
 
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue("OpenApi:Enabled", false))
@@ -307,10 +318,35 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue("OpenApi:Enabl
 app.Run();
 return 0;
 
-static Task WriteHealth(HttpContext http, HealthReport report)
+static Task WriteApiAvailability(HttpContext http, HealthReport report)
 {
     http.Response.ContentType = "application/json";
-    return http.Response.WriteAsJsonAsync(new { status = report.Status.ToString() });
+    http.Response.StatusCode = report.Status == HealthStatus.Healthy
+        ? StatusCodes.Status200OK
+        : StatusCodes.Status503ServiceUnavailable;
+    return http.Response.WriteAsJsonAsync(new
+    {
+        status = report.Status.ToString(),
+        probe = "live"
+    });
+}
+
+static Task WriteDatabaseReadiness(HttpContext http, HealthReport report)
+{
+    http.Response.ContentType = "application/json";
+    http.Response.StatusCode = report.Status == HealthStatus.Healthy
+        ? StatusCodes.Status200OK
+        : StatusCodes.Status503ServiceUnavailable;
+    return http.Response.WriteAsJsonAsync(new
+    {
+        status = report.Status.ToString(),
+        probe = "ready",
+        checks = report.Entries.Select(static entry => new
+        {
+            name = entry.Key,
+            status = entry.Value.Status.ToString()
+        }).ToArray()
+    });
 }
 
 public partial class Program;
