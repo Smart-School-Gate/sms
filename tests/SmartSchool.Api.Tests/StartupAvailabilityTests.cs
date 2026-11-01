@@ -170,6 +170,48 @@ public sealed class StartupAvailabilityTests
         await AssertListensAsync(EphemeralPort());
     }
 
+    [Fact]
+    public async Task Http_port_opens_while_postgresql_connection_is_still_pending()
+    {
+        using var gate = new TcpListener(IPAddress.Loopback, 0);
+        gate.Start();
+        var databasePort = ((IPEndPoint)gate.LocalEndpoint).Port;
+        using var stopping = new CancellationTokenSource();
+        var held = new List<TcpClient>();
+        var accept = AcceptAndHoldAsync(gate, held, stopping.Token);
+        var databaseUrl =
+            "Host=127.0.0.1;Port="
+            + databasePort.ToString(CultureInfo.InvariantCulture)
+            + ";Database=smart_school;Username=smart_school_app;Password=unused;Timeout=20;Ssl Mode=Disable";
+        var httpPort = EphemeralPort();
+        using var process = StartApi(httpPort, databaseUrl);
+        try
+        {
+            var live = await WaitForLiveAsync(process, httpPort, TimeSpan.FromSeconds(15));
+            Assert.Equal(HttpStatusCode.OK, live.StatusCode);
+            Assert.Contains("live", live.Body, StringComparison.Ordinal);
+        }
+        finally
+        {
+            stopping.Cancel();
+            gate.Stop();
+            Stop(process);
+            lock (held)
+            {
+                foreach (var client in held)
+                    client.Dispose();
+            }
+
+            try
+            {
+                await accept;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+    }
+
     private static async Task AssertListensAsync(int port)
     {
         using var process = StartApi(port, UnreachableDatabaseUrl());
@@ -214,9 +256,12 @@ public sealed class StartupAvailabilityTests
         return process;
     }
 
-    private static async Task<LiveProbe> WaitForLiveAsync(Process process, int port)
+    private static async Task<LiveProbe> WaitForLiveAsync(Process process, int port) =>
+        await WaitForLiveAsync(process, port, TimeSpan.FromSeconds(30));
+
+    private static async Task<LiveProbe> WaitForLiveAsync(Process process, int port, TimeSpan timeout)
     {
-        var deadline = DateTime.UtcNow.AddSeconds(30);
+        var deadline = DateTime.UtcNow.Add(timeout);
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
         while (DateTime.UtcNow < deadline)
         {
@@ -249,6 +294,28 @@ public sealed class StartupAvailabilityTests
         }
 
         throw new TimeoutException("The API did not accept connections before the deadline.");
+    }
+
+    private static async Task AcceptAndHoldAsync(TcpListener gate, List<TcpClient> held, CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var client = await gate.AcceptTcpClientAsync(cancellationToken);
+                lock (held)
+                    held.Add(client);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+        catch (SocketException)
+        {
+        }
     }
 
     private static void Stop(Process process)

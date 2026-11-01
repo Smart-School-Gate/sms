@@ -38,7 +38,11 @@ public sealed class DatabaseSecurityCheck(ILogger<DatabaseSecurityCheck> logger)
         ["school_trips", "school_trips_tenant"]
     ];
 
-    public async Task StartingAsync(CancellationToken cancellationToken)
+    public Task StartingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public async Task StartedAsync(CancellationToken cancellationToken)
     {
         var databaseUrl = PostgresConnectionStrings.RequireFromEnvironment();
         var connectionString = PostgresConnectionStrings.ToNpgsql(databaseUrl);
@@ -112,8 +116,6 @@ public sealed class DatabaseSecurityCheck(ILogger<DatabaseSecurityCheck> logger)
             exception.GetType().Name);
     }
 
-    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-    public Task StartedAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task StoppingAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     public Task StoppedAsync(CancellationToken cancellationToken) => Task.CompletedTask;
