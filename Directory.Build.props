@@ -1,0 +1,24 @@
+<Project InitialTargets="ValidateModuleSelection">
+
+  <PropertyGroup>
+    <IncludeHomework Condition="'$(IncludeHomework)' == ''">false</IncludeHomework>
+    <_IncludeHomeworkIsTrue>$([System.String]::Equals('$(IncludeHomework)', 'true'))</_IncludeHomeworkIsTrue>
+    <_IncludeHomeworkIsFalse>$([System.String]::Equals('$(IncludeHomework)', 'false'))</_IncludeHomeworkIsFalse>
+  </PropertyGroup>
+
+  <!-- Relative paths stay out of the foundation bin and obj folders. -->
+  <PropertyGroup Condition="'$(_IncludeHomeworkIsTrue)' == 'true'">
+    <BaseOutputPath>bin\homework\</BaseOutputPath>
+    <BaseIntermediateOutputPath>obj\homework\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+
+  <Target Name="ValidateModuleSelection">
+    <Error
+      Condition="'$(_IncludeHomeworkIsTrue)' != 'true' AND '$(_IncludeHomeworkIsFalse)' != 'true'"
+      Text="IncludeHomework must be 'true' or 'false'. The value '$(IncludeHomework)' is not supported." />
+    <Error
+      Condition="'$(SmartSchoolModules)' != ''"
+      Text="SmartSchoolModules is not a supported selection property. Use IncludeHomework=true or IncludeHomework=false. Value: '$(SmartSchoolModules)'." />
+  </Target>
+
+</Project>

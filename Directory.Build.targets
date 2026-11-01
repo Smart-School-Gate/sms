@@ -1,0 +1,9 @@
+<Project>
+
+  <ItemGroup Condition="'$(_IncludeHomeworkIsTrue)' == 'true'">
+    <Compile Remove="obj\**\*.cs" />
+    <EmbeddedResource Remove="obj\**\*.*" />
+    <None Remove="obj\**\*.*" />
+  </ItemGroup>
+
+</Project>

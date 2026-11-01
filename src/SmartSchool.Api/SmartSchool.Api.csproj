@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(_IncludeHomeworkIsTrue)' == 'true'">
+    <DefineConstants>$(DefineConstants);INCLUDE_HOMEWORK</DefineConstants>
+  </PropertyGroup>
+
+  <Target Name="DefineHomeworkModule" BeforeTargets="CoreCompile" Condition="'$(_IncludeHomeworkIsTrue)' == 'true'">
+    <PropertyGroup>
+      <DefineConstants>$(DefineConstants);INCLUDE_HOMEWORK</DefineConstants>
+    </PropertyGroup>
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SmartSchool.Core\SmartSchool.Core.csproj" />
+    <ProjectReference Include="..\SmartSchool.Contracts\SmartSchool.Contracts.csproj" />
+    <ProjectReference Include="..\SmartSchool.Infrastructure\SmartSchool.Infrastructure.csproj" />
+    <ProjectReference
+      Include="..\SmartSchool.Modules.Homework\SmartSchool.Modules.Homework.csproj"
+      Condition="'$(_IncludeHomeworkIsTrue)' == 'true'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.13" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.13" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.13">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.13" />
+  </ItemGroup>
+
+</Project>

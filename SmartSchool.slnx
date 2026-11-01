@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SmartSchool.Core/SmartSchool.Core.csproj" />
+    <Project Path="src/SmartSchool.Contracts/SmartSchool.Contracts.csproj" />
+    <Project Path="src/SmartSchool.Infrastructure/SmartSchool.Infrastructure.csproj" />
+    <Project Path="src/SmartSchool.Api/SmartSchool.Api.csproj" />
+    <Project Path="src/SmartSchool.Modules.Homework/SmartSchool.Modules.Homework.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SmartSchool.Api.Tests/SmartSchool.Api.Tests.csproj" />
+    <Project Path="tests/SmartSchool.ModuleSelection.Tests/SmartSchool.ModuleSelection.Tests.csproj" />
+  </Folder>
+</Solution>
