@@ -41,7 +41,7 @@ public sealed class TenantCommandInterceptor : DbCommandInterceptor
         CommandEventData eventData,
         InterceptionResult<DbDataReader> result)
     {
-        Apply(command);
+        Apply(command, eventData);
         DbRoundTrips.Query();
         return base.ReaderExecuting(command, eventData, result);
     }
@@ -52,7 +52,7 @@ public sealed class TenantCommandInterceptor : DbCommandInterceptor
         InterceptionResult<DbDataReader> result,
         CancellationToken cancellationToken = default)
     {
-        await ApplyAsync(command, cancellationToken);
+        await ApplyAsync(command, eventData, cancellationToken);
         DbRoundTrips.Query();
         return await base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
     }
@@ -62,7 +62,7 @@ public sealed class TenantCommandInterceptor : DbCommandInterceptor
         CommandEventData eventData,
         InterceptionResult<int> result)
     {
-        Apply(command);
+        Apply(command, eventData);
         DbRoundTrips.Query();
         return base.NonQueryExecuting(command, eventData, result);
     }
@@ -73,7 +73,7 @@ public sealed class TenantCommandInterceptor : DbCommandInterceptor
         InterceptionResult<int> result,
         CancellationToken cancellationToken = default)
     {
-        await ApplyAsync(command, cancellationToken);
+        await ApplyAsync(command, eventData, cancellationToken);
         DbRoundTrips.Query();
         return await base.NonQueryExecutingAsync(command, eventData, result, cancellationToken);
     }
@@ -83,7 +83,7 @@ public sealed class TenantCommandInterceptor : DbCommandInterceptor
         CommandEventData eventData,
         InterceptionResult<object> result)
     {
-        Apply(command);
+        Apply(command, eventData);
         DbRoundTrips.Query();
         return base.ScalarExecuting(command, eventData, result);
     }
@@ -94,19 +94,21 @@ public sealed class TenantCommandInterceptor : DbCommandInterceptor
         InterceptionResult<object> result,
         CancellationToken cancellationToken = default)
     {
-        await ApplyAsync(command, cancellationToken);
+        await ApplyAsync(command, eventData, cancellationToken);
         DbRoundTrips.Query();
         return await base.ScalarExecutingAsync(command, eventData, result, cancellationToken);
     }
 
     internal static void Invalidate(DbConnection connection) => SessionStamp.Invalidate(connection);
 
-    private static void Apply(DbCommand command)
+    private static void Apply(DbCommand command, CommandEventData eventData)
     {
         if (command.Connection is null)
             return;
-        var (user, school) = CurrentSession();
-        if (command.Connection.State == ConnectionState.Open && SessionStamp.Matches(command.Connection, user, school))
+        var (user, school) = CurrentSession(eventData);
+        if (command.Transaction is null
+            && command.Connection.State == ConnectionState.Open
+            && SessionStamp.Matches(command.Connection, user, school))
             return;
         var set = CreateSessionCommand(command, user, school);
         using (set)
@@ -115,12 +117,14 @@ public sealed class TenantCommandInterceptor : DbCommandInterceptor
         DbRoundTrips.Session();
     }
 
-    private static async Task ApplyAsync(DbCommand command, CancellationToken cancellationToken)
+    private static async Task ApplyAsync(DbCommand command, CommandEventData eventData, CancellationToken cancellationToken)
     {
         if (command.Connection is null)
             return;
-        var (user, school) = CurrentSession();
-        if (command.Connection.State == ConnectionState.Open && SessionStamp.Matches(command.Connection, user, school))
+        var (user, school) = CurrentSession(eventData);
+        if (command.Transaction is null
+            && command.Connection.State == ConnectionState.Open
+            && SessionStamp.Matches(command.Connection, user, school))
             return;
         var set = CreateSessionCommand(command, user, school);
         await using (set)
@@ -129,12 +133,19 @@ public sealed class TenantCommandInterceptor : DbCommandInterceptor
         DbRoundTrips.Session();
     }
 
-    private static (string User, string School) CurrentSession()
+    private static (string User, string School) CurrentSession(CommandEventData eventData)
     {
+        if (eventData.Context is AppDbContext db)
+        {
+            var user = db.SessionUserId == Guid.Empty ? "" : db.SessionUserId.ToString("D");
+            var school = db.SessionSchoolId == Guid.Empty ? "" : db.SessionSchoolId.ToString("D");
+            return (user, school);
+        }
+
         var session = DbSessionAmbient.Session;
-        var user = session?.HasUser == true ? session.UserId.ToString("D") : "";
-        var school = session?.HasSchool == true ? session.SchoolId.ToString("D") : "";
-        return (user, school);
+        var ambientUser = session?.HasUser == true ? session.UserId.ToString("D") : "";
+        var ambientSchool = session?.HasSchool == true ? session.SchoolId.ToString("D") : "";
+        return (ambientUser, ambientSchool);
     }
 
     private static DbCommand CreateSessionCommand(DbCommand command, string user, string school)
@@ -188,6 +199,30 @@ public sealed class TenantCommandInterceptor : DbCommandInterceptor
             public string UserId { get; set; } = "";
             public string SchoolId { get; set; } = "";
         }
+    }
+}
+
+public sealed class TenantTransactionInterceptor : DbTransactionInterceptor
+{
+    public override void TransactionRolledBack(DbTransaction transaction, TransactionEndEventData eventData)
+    {
+        Invalidate(transaction);
+        base.TransactionRolledBack(transaction, eventData);
+    }
+
+    public override Task TransactionRolledBackAsync(
+        DbTransaction transaction,
+        TransactionEndEventData eventData,
+        CancellationToken cancellationToken = default)
+    {
+        Invalidate(transaction);
+        return base.TransactionRolledBackAsync(transaction, eventData, cancellationToken);
+    }
+
+    private static void Invalidate(DbTransaction transaction)
+    {
+        if (transaction.Connection is DbConnection connection)
+            TenantCommandInterceptor.Invalidate(connection);
     }
 }
 

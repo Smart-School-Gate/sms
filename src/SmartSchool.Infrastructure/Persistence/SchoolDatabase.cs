@@ -20,11 +20,13 @@ public static class SchoolDatabase
         services.AddScoped<IDbSession, DbSession>();
         services.AddSingleton<TenantCommandInterceptor>();
         services.AddSingleton<TenantConnectionInterceptor>();
+        services.AddSingleton<TenantTransactionInterceptor>();
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
             Configure(options, connectionString);
             options.AddInterceptors(
                 sp.GetRequiredService<TenantConnectionInterceptor>(),
+                sp.GetRequiredService<TenantTransactionInterceptor>(),
                 sp.GetRequiredService<TenantCommandInterceptor>());
         });
         services.AddHostedService<DatabaseSecurityCheck>();

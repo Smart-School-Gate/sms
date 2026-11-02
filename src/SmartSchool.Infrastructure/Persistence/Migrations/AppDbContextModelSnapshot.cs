@@ -240,6 +240,269 @@ namespace SmartSchool.Infrastructure.Persistence.Migrations
                     b.ToTable("branches", (string)null);
                 });
 
+            modelBuilder.Entity("SmartSchool.Core.ChatConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid?>("ClassSectionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("class_section_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<Guid>("SchoolId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("school_id");
+
+                    b.Property<Guid?>("UserHighId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_high_id");
+
+                    b.Property<Guid?>("UserLowId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_low_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_chat_conversations");
+
+                    b.HasAlternateKey("Id", "SchoolId")
+                        .HasName("ak_chat_conversations_id_school_id");
+
+                    b.HasIndex("SchoolId", "ClassSectionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_chat_conversations_school_id_class_section_id")
+                        .HasFilter("kind = 'group'");
+
+                    b.HasIndex("SchoolId", "UserLowId", "UserHighId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_chat_conversations_school_id_user_low_id_user_high_id")
+                        .HasFilter("kind = 'direct'");
+
+                    b.ToTable("chat_conversations", (string)null);
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.ChatHidden", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<Guid>("SchoolId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("school_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_chat_hidden");
+
+                    b.HasIndex("SchoolId")
+                        .HasDatabaseName("ix_chat_hidden_school_id");
+
+                    b.HasIndex("ConversationId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_chat_hidden_conversation_id_user_id");
+
+                    b.ToTable("chat_hidden", (string)null);
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.ChatMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasColumnName("body");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("content_type");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at_utc");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<byte[]>("Payload")
+                        .HasColumnType("bytea")
+                        .HasColumnName("payload");
+
+                    b.Property<string>("ReplyBody")
+                        .HasMaxLength(280)
+                        .HasColumnType("character varying(280)")
+                        .HasColumnName("reply_body");
+
+                    b.Property<string>("ReplySenderName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("reply_sender_name");
+
+                    b.Property<Guid?>("ReplyToMessageId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("reply_to_message_id");
+
+                    b.Property<Guid>("SchoolId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("school_id");
+
+                    b.Property<Guid>("SenderUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sender_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_chat_messages");
+
+                    b.HasIndex("SchoolId")
+                        .HasDatabaseName("ix_chat_messages_school_id");
+
+                    b.HasIndex("ConversationId", "CreatedAtUtc")
+                        .HasDatabaseName("ix_chat_messages_conversation_id_created_at_utc");
+
+                    b.HasIndex("ConversationId", "SchoolId")
+                        .HasDatabaseName("ix_chat_messages_conversation_id_school_id");
+
+                    b.ToTable("chat_messages", (string)null);
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.ChatPin", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<bool>("Pinned")
+                        .HasColumnType("boolean")
+                        .HasColumnName("pinned");
+
+                    b.Property<Guid>("SchoolId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("school_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_chat_pins");
+
+                    b.HasIndex("SchoolId")
+                        .HasDatabaseName("ix_chat_pins_school_id");
+
+                    b.HasIndex("ConversationId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_chat_pins_conversation_id_user_id");
+
+                    b.ToTable("chat_pins", (string)null);
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.ChatPresence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("LastSeenAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_seen_at_utc");
+
+                    b.Property<Guid>("SchoolId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("school_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_chat_presence");
+
+                    b.HasIndex("SchoolId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_chat_presence_school_id_user_id");
+
+                    b.ToTable("chat_presence", (string)null);
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.ChatRead", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<DateTime>("LastReadAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_read_at_utc");
+
+                    b.Property<Guid>("SchoolId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("school_id");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_chat_reads");
+
+                    b.HasIndex("SchoolId")
+                        .HasDatabaseName("ix_chat_reads_school_id");
+
+                    b.HasIndex("ConversationId", "UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_chat_reads_conversation_id_user_id");
+
+                    b.ToTable("chat_reads", (string)null);
+                });
+
             modelBuilder.Entity("SmartSchool.Core.ClassSection", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1204,6 +1467,74 @@ namespace SmartSchool.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_branches_schools_school_id");
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.ChatConversation", b =>
+                {
+                    b.HasOne("SmartSchool.Core.School", null)
+                        .WithMany()
+                        .HasForeignKey("SchoolId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_chat_conversations_schools_school_id");
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.ChatHidden", b =>
+                {
+                    b.HasOne("SmartSchool.Core.School", null)
+                        .WithMany()
+                        .HasForeignKey("SchoolId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_chat_hidden_schools_school_id");
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.ChatMessage", b =>
+                {
+                    b.HasOne("SmartSchool.Core.School", null)
+                        .WithMany()
+                        .HasForeignKey("SchoolId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_chat_messages_schools_school_id");
+
+                    b.HasOne("SmartSchool.Core.ChatConversation", null)
+                        .WithMany()
+                        .HasForeignKey("ConversationId", "SchoolId")
+                        .HasPrincipalKey("Id", "SchoolId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_chat_messages_chat_conversations_conversation_id_school_id");
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.ChatPin", b =>
+                {
+                    b.HasOne("SmartSchool.Core.School", null)
+                        .WithMany()
+                        .HasForeignKey("SchoolId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_chat_pins_schools_school_id");
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.ChatPresence", b =>
+                {
+                    b.HasOne("SmartSchool.Core.School", null)
+                        .WithMany()
+                        .HasForeignKey("SchoolId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_chat_presence_schools_school_id");
+                });
+
+            modelBuilder.Entity("SmartSchool.Core.ChatRead", b =>
+                {
+                    b.HasOne("SmartSchool.Core.School", null)
+                        .WithMany()
+                        .HasForeignKey("SchoolId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_chat_reads_schools_school_id");
                 });
 
             modelBuilder.Entity("SmartSchool.Core.ClassSection", b =>

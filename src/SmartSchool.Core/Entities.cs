@@ -253,3 +253,65 @@ public sealed class AttendanceRecord
     public AttendanceMark Status { get; set; }
     public DateTime CreatedAtUtc { get; set; }
 }
+
+public sealed class ChatConversation
+{
+    public Guid Id { get; set; }
+    public Guid SchoolId { get; set; }
+    public string Kind { get; set; } = "";
+    public Guid? ClassSectionId { get; set; }
+    public Guid? UserLowId { get; set; }
+    public Guid? UserHighId { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+}
+
+public sealed class ChatMessage
+{
+    public Guid Id { get; set; }
+    public Guid SchoolId { get; set; }
+    public Guid ConversationId { get; set; }
+    public Guid SenderUserId { get; set; }
+    public string Kind { get; set; } = "text";
+    public string Body { get; set; } = "";
+    public string? FileName { get; set; }
+    public string? ContentType { get; set; }
+    public byte[]? Payload { get; set; }
+    public Guid? ReplyToMessageId { get; set; }
+    public string? ReplySenderName { get; set; }
+    public string? ReplyBody { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+}
+
+public sealed class ChatRead
+{
+    public Guid Id { get; set; }
+    public Guid SchoolId { get; set; }
+    public Guid ConversationId { get; set; }
+    public Guid UserId { get; set; }
+    public DateTime LastReadAtUtc { get; set; }
+}
+
+public sealed class ChatPin
+{
+    public Guid Id { get; set; }
+    public Guid SchoolId { get; set; }
+    public Guid ConversationId { get; set; }
+    public Guid UserId { get; set; }
+    public bool Pinned { get; set; }
+}
+
+public sealed class ChatPresence
+{
+    public Guid Id { get; set; }
+    public Guid SchoolId { get; set; }
+    public Guid UserId { get; set; }
+    public DateTime LastSeenAtUtc { get; set; }
+}
+
+public sealed class ChatHidden
+{
+    public Guid Id { get; set; }
+    public Guid SchoolId { get; set; }
+    public Guid ConversationId { get; set; }
+    public Guid UserId { get; set; }
+}

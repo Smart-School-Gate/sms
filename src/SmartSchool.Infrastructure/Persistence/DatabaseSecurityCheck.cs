@@ -35,7 +35,13 @@ public sealed class DatabaseSecurityCheck(ILogger<DatabaseSecurityCheck> logger)
         ["attendance_records", "attendance_records_tenant"],
         ["homework_assignments", "homework_assignments_tenant"],
         ["homework_submissions", "homework_submissions_tenant"],
-        ["school_trips", "school_trips_tenant"]
+        ["school_trips", "school_trips_tenant"],
+        ["chat_conversations", "chat_conversations_tenant"],
+        ["chat_messages", "chat_messages_tenant"],
+        ["chat_reads", "chat_reads_tenant"],
+        ["chat_pins", "chat_pins_tenant"],
+        ["chat_presence", "chat_presence_tenant"],
+        ["chat_hidden", "chat_hidden_tenant"]
     ];
 
     public Task StartingAsync(CancellationToken cancellationToken) => Task.CompletedTask;

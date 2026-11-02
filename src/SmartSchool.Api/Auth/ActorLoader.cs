@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using SmartSchool.Core;
 using SmartSchool.Api.Hosting;
@@ -7,6 +8,8 @@ namespace SmartSchool.Api.Auth;
 
 public sealed class ActorLoader(AppDbContext db, IDbSession session, RequestActor actor)
 {
+    private static readonly ConcurrentDictionary<string, CachedPrincipal> Fresh = new();
+
     public async Task<bool> LoadAsync(HttpContext http, CancellationToken cancellationToken)
     {
         var sub = http.User.FindFirst("sub")?.Value;
@@ -30,6 +33,26 @@ public sealed class ActorLoader(AppDbContext db, IDbSession session, RequestActo
             }
 
             contextId = parsedContextId;
+        }
+
+        var key = $"{userId:N}:{version}:{contextId}";
+        if (contextId is Guid cachedContextId && Fresh.TryGetValue(key, out var cached) && cached.UntilTicks > Environment.TickCount64)
+        {
+            actor.IsAuthenticated = true;
+            actor.UserId = userId;
+            actor.FullName = cached.FullName;
+            actor.MustChangePassword = cached.MustChangePassword;
+            session.SetSchool(cached.SchoolId);
+            actor.Context = new UserContext
+            {
+                Id = cachedContextId,
+                UserId = userId,
+                SchoolId = cached.SchoolId,
+                Role = cached.Role,
+                StudentId = cached.StudentId,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+            return true;
         }
 
         var row = await db.Users.AsNoTracking()
@@ -98,6 +121,13 @@ public sealed class ActorLoader(AppDbContext db, IDbSession session, RequestActo
         }
 
         actor.Context = context;
+        Fresh[key] = new CachedPrincipal(
+            Environment.TickCount64 + 20_000,
+            actor.MustChangePassword,
+            actor.FullName,
+            context.SchoolId,
+            context.Role,
+            context.StudentId);
         return true;
     }
 
@@ -113,4 +143,12 @@ public sealed class ActorLoader(AppDbContext db, IDbSession session, RequestActo
             select link.StudentId
         ).AnyAsync(cancellationToken);
     }
+
+    private sealed record CachedPrincipal(
+        long UntilTicks,
+        bool MustChangePassword,
+        string FullName,
+        Guid SchoolId,
+        AppRole Role,
+        Guid? StudentId);
 }

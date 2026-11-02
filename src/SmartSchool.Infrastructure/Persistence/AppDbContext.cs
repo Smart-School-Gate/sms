@@ -29,8 +29,18 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IDbSess
     public DbSet<HomeworkAssignment> HomeworkAssignments => Set<HomeworkAssignment>();
     public DbSet<HomeworkSubmission> HomeworkSubmissions => Set<HomeworkSubmission>();
     public DbSet<SchoolTrip> SchoolTrips => Set<SchoolTrip>();
+    public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<ChatRead> ChatReads => Set<ChatRead>();
+    public DbSet<ChatPin> ChatPins => Set<ChatPin>();
+    public DbSet<ChatPresence> ChatPresences => Set<ChatPresence>();
+    public DbSet<ChatHidden> ChatHiddens => Set<ChatHidden>();
 
     private Guid CurrentSchoolId => session.SchoolId;
+
+    internal Guid SessionUserId => session.UserId;
+
+    internal Guid SessionSchoolId => session.SchoolId;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -273,6 +283,69 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, IDbSess
             entity.Property(x => x.SupervisorName).HasMaxLength(200).IsRequired();
             entity.Property(x => x.Status).HasMaxLength(20).IsRequired();
             entity.HasIndex(x => new { x.SchoolId, x.TripOn });
+            entity.HasOne<School>().WithMany().HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.SchoolId == CurrentSchoolId);
+        });
+
+        modelBuilder.Entity<ChatConversation>(entity =>
+        {
+            entity.ToTable("chat_conversations");
+            entity.HasAlternateKey(x => new { x.Id, x.SchoolId });
+            entity.Property(x => x.Kind).HasMaxLength(16).IsRequired();
+            entity.HasIndex(x => new { x.SchoolId, x.ClassSectionId })
+                .IsUnique()
+                .HasFilter("kind = 'group'");
+            entity.HasIndex(x => new { x.SchoolId, x.UserLowId, x.UserHighId })
+                .IsUnique()
+                .HasFilter("kind = 'direct'");
+            entity.HasOne<School>().WithMany().HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.SchoolId == CurrentSchoolId);
+        });
+
+        modelBuilder.Entity<ChatMessage>(entity =>
+        {
+            entity.ToTable("chat_messages");
+            entity.Property(x => x.Kind).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.Body).HasMaxLength(4000).IsRequired();
+            entity.Property(x => x.FileName).HasMaxLength(260);
+            entity.Property(x => x.ContentType).HasMaxLength(120);
+            entity.Property(x => x.ReplySenderName).HasMaxLength(200);
+            entity.Property(x => x.ReplyBody).HasMaxLength(280);
+            entity.HasIndex(x => new { x.ConversationId, x.CreatedAtUtc });
+            entity.HasOne<School>().WithMany().HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ChatConversation>().WithMany().HasForeignKey(x => new { x.ConversationId, x.SchoolId })
+                .HasPrincipalKey(x => new { x.Id, x.SchoolId }).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.SchoolId == CurrentSchoolId);
+        });
+
+        modelBuilder.Entity<ChatRead>(entity =>
+        {
+            entity.ToTable("chat_reads");
+            entity.HasIndex(x => new { x.ConversationId, x.UserId }).IsUnique();
+            entity.HasOne<School>().WithMany().HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.SchoolId == CurrentSchoolId);
+        });
+
+        modelBuilder.Entity<ChatPin>(entity =>
+        {
+            entity.ToTable("chat_pins");
+            entity.HasIndex(x => new { x.ConversationId, x.UserId }).IsUnique();
+            entity.HasOne<School>().WithMany().HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.SchoolId == CurrentSchoolId);
+        });
+
+        modelBuilder.Entity<ChatPresence>(entity =>
+        {
+            entity.ToTable("chat_presence");
+            entity.HasIndex(x => new { x.SchoolId, x.UserId }).IsUnique();
+            entity.HasOne<School>().WithMany().HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasQueryFilter(x => x.SchoolId == CurrentSchoolId);
+        });
+
+        modelBuilder.Entity<ChatHidden>(entity =>
+        {
+            entity.ToTable("chat_hidden");
+            entity.HasIndex(x => new { x.ConversationId, x.UserId }).IsUnique();
             entity.HasOne<School>().WithMany().HasForeignKey(x => x.SchoolId).OnDelete(DeleteBehavior.Restrict);
             entity.HasQueryFilter(x => x.SchoolId == CurrentSchoolId);
         });

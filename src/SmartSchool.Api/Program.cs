@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using SmartSchool.Api.Auth;
+using SmartSchool.Api.Chat;
 using SmartSchool.Api.Hosting;
 using SmartSchool.Api.Students;
 using SmartSchool.Api.Supervisors;
@@ -64,6 +65,9 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ActorLoader>();
 builder.Services.AddScoped<RequestActor>();
 builder.Services.AddScoped<StudentService>();
+builder.Services.AddScoped<ChatService>();
+builder.Services.AddSingleton<ChatRealtime>();
+builder.Services.AddSignalR();
 builder.Services.AddScoped<HomeworkService>();
 builder.Services.AddScoped<TeacherService>();
 builder.Services.AddScoped<SupervisorService>();
@@ -92,6 +96,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
         options.Events = new JwtBearerEvents
         {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                    context.Token = accessToken;
+                return Task.CompletedTask;
+            },
             OnChallenge = async context =>
             {
                 context.HandleResponse();
@@ -120,6 +131,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()?
+    .Concat(new[]
+    {
+        "http://localhost:8081",
+        "http://127.0.0.1:8081",
+        "http://localhost:8091",
+        "http://127.0.0.1:8091",
+        "http://127.0.0.1:8082"
+    })
     .Where(origin => !string.IsNullOrWhiteSpace(origin))
     .Distinct(StringComparer.OrdinalIgnoreCase)
     .ToArray() ?? [];
@@ -141,7 +160,7 @@ if (development || allowedOrigins.Length > 0)
                     return uri.Scheme == Uri.UriSchemeHttp
                         && (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || uri.Host == "127.0.0.1");
                 })
-                .WithHeaders("Authorization", "Content-Type", "Accept")
+                .WithHeaders("Authorization", "Content-Type", "Accept", "X-Requested-With", "X-SignalR-User-Agent")
                 .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
         });
     });
@@ -227,7 +246,7 @@ app.Use(async (http, next) =>
 {
     var session = http.RequestServices.GetRequiredService<IDbSession>();
     using var scope = DbSessionAmbient.Push(session);
-    if (http.Request.Path.StartsWithSegments("/health"))
+    if (http.Request.Path.StartsWithSegments("/health") || http.Request.Path.StartsWithSegments("/hubs"))
     {
         await next(http);
         return;
@@ -280,6 +299,8 @@ app.UseAuthorization();
 
 app.MapAuthEndpoints();
 app.MapStudentEndpoints();
+app.MapChatEndpoints();
+app.MapHub<ChatHub>("/hubs/chat");
 app.MapTeacherEndpoints();
 app.MapSupervisorEndpoints();
 #if INCLUDE_HOMEWORK
